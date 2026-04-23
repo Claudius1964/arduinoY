@@ -81,9 +81,10 @@
  *  0xC     JNZ   #a    PC  ← a  if ZERO flag is clear
  *  0xD     STORE #a    RAM[a] ← ACC     (a = 0–255, word-addressed)
  *  0xE     LOAD_M #a   ACC ← RAM[a]     (load from data RAM)
- *  0xF     OUT   #f    Display ACC on LED panel; HALT if f == 0x0FF
+ *  0xF     OUT   #f    Display ACC on LED panel; HALT if f == 0xFF
  *
- *  Flags updated after every ALU instruction (not after jumps / OUT):
+ *  Flags updated after every ALU instruction
+ *  (NOT updated by LOAD, LOAD_M, STORE, jumps, or OUT):
  *    ZERO  (ZF) – set when ACC == 0
  *    CARRY (CF) – set on ADD overflow or SUB borrow
  *
@@ -148,7 +149,7 @@ enum Opcode : uint8_t {
 #define INSTR(op, val)  ((uint16_t)(((uint8_t)(op) << 12u) | ((uint16_t)(val) & 0x0FFFu)))
 
 // Operand passed to OUT that signals end-of-program / HALT
-#define OUT_HALT  0x0FF
+#define OUT_HALT  0xFF
 
 // ---------------------------------------------------------------------------
 // Demo program  (stored in flash to spare precious SRAM)
@@ -242,7 +243,7 @@ static const uint16_t DEMO_PROGRAM[] PROGMEM = {
      * Build 0xFFFF:
      *   LOAD 0x000 → ACC = 0x0000
      *   NOT        → ACC = 0xFFFF
-     *   OUT 0x0FF  → display 0xFFFF, then HALT (OUT_HALT flag)
+     *   OUT 0xFF   → display 0xFFFF, then HALT (OUT_HALT flag)
      */
     /* 59 */ INSTR(OP_LOAD, 0x000),   // ACC = 0x0000
     /* 60 */ INSTR(OP_NOT,  0x000),   // ACC = 0xFFFF  (all bits set)
@@ -455,11 +456,15 @@ static void stepCPU() {
             break;
     }
 
-    // Update flags after every ALU instruction
-    // (flags are NOT updated by jumps, OUT, or STORE/LOAD_M)
-    bool updatesFlags = (op != OP_JMP  && op != OP_JZ   &&
-                         op != OP_JNZ  && op != OP_OUT  &&
-                         op != OP_STORE);
+    // Update flags after every pure ALU instruction only.
+    // LOAD_M (memory read), STORE (memory write), jumps, and OUT
+    // do NOT affect flags.  LOAD #n DOES update ZF so callers can
+    // branch on an immediate value without doing a dummy subtraction.
+    bool updatesFlags = (op == OP_ADD  || op == OP_SUB  ||
+                         op == OP_AND  || op == OP_OR   ||
+                         op == OP_XOR  || op == OP_NOT  ||
+                         op == OP_SHL  || op == OP_SHR  ||
+                         op == OP_LOAD);
     if (updatesFlags) {
         cpu.zf = (cpu.acc == 0);
     }

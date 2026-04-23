@@ -99,10 +99,10 @@ Each instruction is one **16-bit word**: `[15:12]` = 4-bit opcode, `[11:0]` = 12
 | `0xE` | `LOAD_M #a` | `ACC ← RAM[a]` |
 | `0xF` | `OUT  #f` | Display `ACC` on LEDs; HALT if `f == 0xFF` |
 
-**Flags** (updated after every ALU instruction, not after jumps/OUT):
+**Flags** (updated after ALU instructions and `LOAD`; NOT updated by `LOAD_M`, `STORE`, jumps, or `OUT`):
 
 - **ZF** (Zero Flag) — set when `ACC == 0`
-- **CF** (Carry Flag) — set on ADD overflow or SUB borrow
+- **CF** (Carry Flag) — set on `ADD` overflow or `SUB` borrow
 
 ---
 
